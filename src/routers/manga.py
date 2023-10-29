@@ -1,5 +1,5 @@
-from fastapi import APIRouter
-
+from fastapi import APIRouter, HTTPException
+from src.utils.scraper import get_recent_manga
 
 router = APIRouter(
     prefix="/api/manga",
@@ -12,4 +12,7 @@ def get_all_mangas():
 
 @router.get("/getRecentMangas")
 def get_recent_mangas():
-    pass
+    try:
+        return get_recent_manga()
+    except:
+        HTTPException(400, "Something went wrong")

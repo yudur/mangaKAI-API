@@ -13,7 +13,7 @@ uvicorn = "*"
 pytest = "*"
 
 [scripts]
-run = "uvicorn src.app:app"
+start = "uvicorn src.app:app"
 test = "pytest tests"
 
 [requires]
