@@ -1,102 +1,39 @@
 from bs4 import BeautifulSoup
-import requests
-from lxml import etree
+import httpx
+from requests_html import HTMLSession
+
+async def getHTML(url) -> BeautifulSoup:
+    session = HTMLSession()
+    res = session.get(url)
+    soup = BeautifulSoup(res.text, "html.parser")
+    return soup
 
 
-def get_recent_manga() -> list:
-    req = requests.get("https://mangaschan.net/ultimas-atualizacoes/")
-    site = BeautifulSoup(req.text, "html.parser")
+async def get_manga_pages(manga: str, initial: str, chapter: int):
+    index = 1
+    running = True
+    true_url = -1
+    while running:
+        urls = [
+            f"https://cdn.plaquiz.xyz/uploads/{initial}/{manga}/{chapter}/{index}",
+            f"https://dn1.imgstatic.club/uploads/{initial}/{manga}/{chapter}/{index}"
+            f"https://neogoog.xyz/uploads/{initial}/{manga}/{chapter}/{index}",
+            f"https://viralcontentmxp.xyz/uploads/{initial}/{manga}/{chapter}/{index}",
+        ]
 
-    containers = site.find_all("div", class_="uta")
+        async with httpx.AsyncClient() as client:
+            if true_url != -1:
+                res = await client.get(urls[true_url])
+            else:
+                for i, url in enumerate(urls):
+                    res = await client.get(url)
+                    if res.status_code == 200:
+                        true_url = i
+                        break
+                
 
-    mangas = []
-    for container in containers:
-        img = container.find("img", class_="ts-post-image")
-        title_manga = container.find("h4").text
-        manga_status = container.find("span", class_="statusind Ongoing").text
-
-        container_chapters = container.find_all("li")
-
-        chapters = []
-        for container_chapter in container_chapters:
-            chapter = container_chapter.find("a")
-
-            chapters.append({
-                "chapter": chapter.text,
-                "link": chapter["href"],
-                "releaseDateOf": container_chapter.find("span").text
-            })
-
-        mangas.append({
-            "imageSrc": img["data-src"],
-            "title": title_manga,
-            "mangaStatus": manga_status,
-            "chapters": chapters
-        })
-    return mangas
-
-
-def get_specific_manga(manga: str):
-    manga = manga.replace(" ", "-")
-    req = requests.get(f"https://mangaschan.net/manga/{manga.lower()}/")
-    site = BeautifulSoup(req.text, "html.parser")
-    dom = etree.HTML(str(site))
-
-    try:
-        title = site.find("h1", itemprop="name").text
-    except:
-        raise ValueError("non-existent manga or irregular name")
-
-    status = dom.xpath(
-        "/html/body/div[1]/div[2]/div/div[2]/article/div[1]/div[1]/div/div[4]/div[1]/i"
-    )[0].text
-
-    try:
-        img = site.find("img", alt=title)["src"]
-    except:
-        try:
-            img_container = site.find("div", itemprop="image")
-            img = img_container.find("img")["src"]
-        except:
-            img = None
-
-    description_container = site.find("div", itemprop="description")
-    paragraphs_description = description_container.find_all("p")
-
-    description = ""
-    for paragraph in paragraphs_description:
-        description = description + str(paragraph.text) + "\n"
-
-    tags = site.find_all("a", rel="tag")
-    tags = [tag.text for tag in tags]
-
-    rating = site.find("div", itemprop="ratingValue")["content"]
-
-    all_chapters = site.find_all("div", class_="eph-num")
-    chapters = []
-    for i, chapter in enumerate(all_chapters):
-        if i == 0: continue
-
-        link = chapter.find("a")["href"]
-        _chapter = chapter.find("span", class_="chapternum").text
-        release_date_of = chapter.find("span", class_="chapterdate").text
-
-        chapters.append({
-            "link": link,
-            "chapter": _chapter,
-            "releaseDateOf": release_date_of
-        })
-
-    return {
-        "title": title,
-        "description": description,
-        "imageSrc": img,
-        "tags": tags,
-        "rating": rating,
-        "status": status,
-        "chapters": chapters
-    }
-
-if __name__=="__main__":
-    # get_specific_manga("legend-of-the-northern-blade")
-    get_specific_manga("amagami-san-chi-no-enmusubi-serie")
+        if res.status_code == 404:
+            yield "finished application"
+            continue
+        index += 1
+        yield urls[true_url]

@@ -6,8 +6,8 @@ name = "pypi"
 [packages]
 fastapi = "*"
 beautifulsoup4 = "*"
-requests = "*"
-lxml = "*"
+httpx = "*"
+requests-html = "*"
 
 [dev-packages]
 uvicorn = "*"
